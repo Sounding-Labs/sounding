@@ -60,6 +60,6 @@ So the first review pass sits with you. The auto-merge gate lands changes it
 can verify mechanically and hands everything else to a maintainer — the boxes
 above are what it reads. Nothing here is ceremony: each line corresponds to a
 failure this repository has actually had, or to an invariant in
-[CONTRIBUTING.md](CONTRIBUTING.md).
+[CONTRIBUTING.md](../CONTRIBUTING.md).
 
 </details>

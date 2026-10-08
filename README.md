@@ -98,7 +98,7 @@ That is also why the reference rate is a required dependency rather than an
 optional enrichment. Without it the engine can rank, but it cannot tell a good
 deal from a disaster.
 
-The full argument, with the measurements behind it: **[docs/why-sounding.md](docs/why-sounding.md)**.
+The full argument, with the measurements behind it: **[docs/why-wayfare.md](docs/why-wayfare.md)**.
 Why Stellar-native and what the code uses: **[docs/why-stellar-native.md](docs/why-stellar-native.md)**.
 
 ---
@@ -275,7 +275,7 @@ refuses to do, who it is for, and the non-custodial position stated once?
 
 Completely new to the ideas, and want the prose version — what a reference
 rate is, why one corridor is priced at twelve sizes, and what a verdict is
-allowed to claim? **[docs/how-sounding-works.md](docs/how-sounding-works.md)**
+allowed to claim? **[docs/how-wayfare-works.md](docs/how-wayfare-works.md)**
 
 Why the monitor is Stellar-native, grounded in what the code uses (assets,
 pathfinding, order books, anchors, SEP-1, SEP-38) without unsupported exclusivity claims:
