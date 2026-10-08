@@ -264,11 +264,16 @@ a record within `-max-age`, `1` when any corridor is stale or has never
 recorded, and `2` when the check itself could not run (unreadable store,
 non-positive `-max-age`). The checked set is the scheduler's expected
 corridors unioned with whatever the store holds, so a corridor whose history
-vanished fails exactly like a stale one: unknown is never a silent pass. A
-non-zero exit from either half should be made loud by the runner — the
-`measure` workflow carries an alert step that opens or updates a single
-tracking issue rather than emitting one new issue per failure (detection is
-idempotent; see [spike-alerting-semantics.md](spike-alerting-semantics.md)).
+vanished fails exactly like a stale one: unknown is never a silent pass.
+
+**Alerts are not wired up in the `measure` workflow.** Its last step opens a
+measurement pull request; it has no failure handler or issue-creation step.
+The `-check-fresh` command provides out-of-process staleness detection, but a
+runner must schedule it independently and make its non-zero exit loud. A red
+measurement run alone does not detect a schedule that never fired, and neither
+command creates or updates a tracking issue. Opening or updating one tracking
+issue rather than one per failure is a proposed alerting design, not current
+workflow behaviour; see [spike-alerting-semantics.md](spike-alerting-semantics.md).
 
 ---
 
