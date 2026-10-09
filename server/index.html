@@ -2349,7 +2349,20 @@ function displayBalances() {
   }
 }
 
-// Format balance for display
+/**
+ * Formats a numeric wallet balance using a fixed number of decimals.
+ * This is not locale-aware formatting: no grouping separators are inserted.
+ * Values >= 1000 use 2 decimal places; values from 1 to < 1000 use 4;
+ * values below 1 (including zero and negative values) use 7.
+ * Number#toFixed rounds and pads trailing zeroes. NaN and infinities are
+ * returned as their ordinary Number#toFixed strings.
+ *
+ * @param {number} amount - Numeric wallet balance (not a numeric string).
+ * @returns {string} Fixed-decimal balance, e.g. "1000.00", "1.0000",
+ *   or "0.0000000".
+ * @throws {TypeError} When passed a value without Number#toFixed,
+ *   such as a string, null or undefined.
+ */
 function formatBalance(amount) {
   if (amount >= 1000) return amount.toFixed(2);
   if (amount >= 1) return amount.toFixed(4);
