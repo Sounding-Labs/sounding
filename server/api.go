@@ -99,6 +99,18 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/chain-heads", s.handleChainHeads)
 	mux.HandleFunc("/api/assets", s.handleAssets)
 	mux.HandleFunc("/api/market-structure", s.handleMarketStructure)
+	mux.HandleFunc("/api/attestations/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			w.Header().Set("Allow", http.MethodGet)
+			writeError(w, r, http.StatusMethodNotAllowed, codeMethodNotAllowed, "only GET is supported")
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/latest") {
+			handleAttestationLatest(w, r)
+			return
+		}
+		handleAttestations(w, r)
+	})
 	mux.HandleFunc("/healthz", s.handleHealth)
 	mux.Handle("/", uiHandler())
 	return withCORS(s.limit(mux))
