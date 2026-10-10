@@ -45,6 +45,25 @@ jobs:
           cache: true
           cache-dependency-path: go.sum
 
+      # deps.go and deps_test.go hold the module to exactly two direct
+      # dependencies at pinned versions, which is what catches an entry being
+      # added. Neither notices the other direction: a require line `go mod
+      # tidy` would drop, or a go.sum that has drifted out of sync with the
+      # imports. docs/dependency-policy.md treats the module file as the pin,
+      # so the committed tree has to be the one tidy would produce — otherwise
+      # the pin says something the code does not.
+      #
+      # The step runs before gofmt and go test so an untidied module fails in
+      # seconds rather than after the suite. When it is red the diff below is
+      # the whole answer: run `go mod tidy` locally and commit what it changes.
+      - name: go mod tidy is clean
+        run: |
+          go mod tidy
+          if ! git diff --exit-code go.mod go.sum; then
+            echo "::error::go.mod/go.sum differ from what 'go mod tidy' produces; run it locally and commit the result"
+            exit 1
+          fi
+
       - name: gofmt
         run: |
           unformatted=$(gofmt -l .)
