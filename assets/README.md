@@ -77,9 +77,9 @@ Add `banner.svg` as the social preview image:
 <link rel="icon" type="image/svg+xml" href="/assets/icon.svg">
 ```
 
-### README Header
+### README Header (from this directory)
 ```markdown
-![Stellar Pathfinder](assets/banner.svg)
+![Stellar Pathfinder](banner.svg)
 ```
 
 ### Open Graph Meta Tags

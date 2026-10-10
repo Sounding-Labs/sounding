@@ -32,6 +32,17 @@ env:
   GO_VERSION: "1.22"
 
 jobs:
+  docs:
+    name: relative Markdown links
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+      - name: test link checker without network
+        run: sudo unshare --net python3 -m unittest discover -s scripts -p 'test_check_markdown_links.py' -v
+      - name: check every Markdown file without network
+        run: sudo unshare --net python3 scripts/check_markdown_links.py
+
   build:
     name: build and test
     runs-on: ubuntu-latest
