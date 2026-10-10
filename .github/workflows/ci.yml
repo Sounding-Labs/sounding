@@ -1,274 +1,101 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches:
+    - main
   pull_request:
-    branches: [main]
-
-  # A merge queue builds each candidate against the projected result of
-  # everything ahead of it, and branch protection waits for these same four
-  # contexts on that build. Without this trigger the checks never run for a
-  # queued entry, so every pull request that enters the queue sits there until
-  # it times out — the queue would look broken when it is simply unanswered.
+    branches:
+    - main
   merge_group:
-    branches: [main]
-
+    branches:
+    - main
 permissions:
   contents: read
-
-# The Go toolchain, in one place.
-#
-# It lived in three separate job definitions and drifted: 4a49804 meant to put
-# 1.26 on the lint job so golangci-lint v2 would build, and landed it on
-# "build and test" instead — so that job compiled and tested on 1.26 while lint
-# and the offline tests stayed on 1.22, and lint passed on 1.22 regardless.
-#
-# A construct accepted by one toolchain and rejected by another would have
-# shown up as a job disagreeing with its neighbours for reasons unrelated to
-# the change under test. Defining it once removes that failure mode, and keeps
-# CI honest about go.mod (go 1.22.2), the Dockerfile (golang:1.22-alpine) and
-# the "Go 1.22+" both README.md and CONTRIBUTING.md promise.
 env:
-  GO_VERSION: "1.22"
-
+  GO_VERSION: '1.22'
 jobs:
   docs:
-    name: relative Markdown links
+    name: relative markdown links
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v5
-      - name: test link checker without network
-        run: sudo unshare --net python3 -m unittest discover -s scripts -p 'test_check_markdown_links.py' -v
-      - name: check every Markdown file without network
-        run: sudo unshare --net python3 scripts/check_markdown_links.py
-
+    - uses: actions/checkout@v5
+    - name: check relative markdown links
+      run: python3 scripts/check-md-links.py
   build:
     name: build and test
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-          cache-dependency-path: go.sum
-
-      # deps.go and deps_test.go hold the module to exactly two direct
-      # dependencies at pinned versions, which is what catches an entry being
-      # added. Neither notices the other direction: a require line `go mod
-      # tidy` would drop, or a go.sum that has drifted out of sync with the
-      # imports. docs/dependency-policy.md treats the module file as the pin,
-      # so the committed tree has to be the one tidy would produce — otherwise
-      # the pin says something the code does not.
-      #
-      # The step runs before gofmt and go test so an untidied module fails in
-      # seconds rather than after the suite. When it is red the diff below is
-      # the whole answer: run `go mod tidy` locally and commit what it changes.
-      - name: go mod tidy is clean
-        run: |
-          go mod tidy
-          if ! git diff --exit-code go.mod go.sum; then
-            echo "::error::go.mod/go.sum differ from what 'go mod tidy' produces; run it locally and commit the result"
-            exit 1
-          fi
-
-      - name: gofmt
-        run: |
-          unformatted=$(gofmt -l .)
-          if [ -n "$unformatted" ]; then
-            echo "These files are not gofmt'd:"
-            echo "$unformatted"
-            gofmt -d .
-            exit 1
-          fi
-
-      - name: go vet
-        run: go vet ./...
-
-      - name: go test -race with coverage
-        run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
-
-      - name: go build
-        run: go build ./...
-
+    - uses: actions/checkout@v5
+    - uses: actions/setup-go@v6
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+        cache-dependency-path: go.sum
+    - name: go mod tidy is clean
+      run: "go mod tidy\nif ! git diff --exit-code go.mod go.sum; then\n  echo \"\
+        ::error::go.mod/go.sum differ from what 'go mod tidy' produces; run it locally\
+        \ and commit the result\"\n  exit 1\nfi\n"
+    - name: gofmt
+      run: "unformatted=$(gofmt -l .)\nif [ -n \"$unformatted\" ]; then\n  echo \"\
+        These files are not gofmt'd:\"\n  echo \"$unformatted\"\n  gofmt -d .\n  exit\
+        \ 1\nfi\n"
+    - name: go vet
+      run: go vet ./...
+    - name: go test -race with coverage
+      run: go test -race -coverprofile=coverage.out -covermode=atomic ./...
+    - name: go build
+      run: go build ./...
   lint:
     name: golangci-lint
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-          cache-dependency-path: go.sum
-
-      # v7 of the action is the first that installs golangci-lint v2, which
-      # is the schema .golangi.yml is written against. v6 installs the v1
-
-      # line and rejects the config outright.
-      #
-      # The version is pinned rather than tracking latest so the binary and
-      # the config cannot drift apart again without someone choosing to.
-      - uses: golangci/golangci-lint-action@v7
-        with:
-          version: v2.1.6
-
-  # Every test is meant to run from recorded bytes. snapshot.Replayer returns
-  # ErrNotRecorded rather than falling through to the network, so a test that
-  # reaches out fails instead of passing intermittently — but that only holds
-  # while nothing bypasses the replayer. This proves it structurally rather
-  # than by convention.
+    - uses: actions/checkout@v5
+    - uses: actions/setup-go@v6
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+        cache-dependency-path: go.sum
+    - uses: golangci/golangci-lint-action@v7
+      with:
+        version: v2.1.6
   offline-tests:
     name: tests run with no network
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v5
+    - uses: actions/checkout@v5
+    - uses: actions/setup-go@v6
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+        cache-dependency-path: go.sum
+    - name: download modules
+      run: go mod download
+    - name: run tests with no network
+      run: 'set -euo pipefail
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-          cache-dependency-path: go.sum
 
-      # Only the modules need fetching. Compilation itself never touches the
-      # network, so downloading is enough and is far cheaper than a full build.
-      - name: download modules
-        run: go mod download
+        # Ubuntu 24.04 runners restrict unprivileged user namespaces through
 
-      # The tests run in a network namespace with no route out, rather than
-      # behind firewall rules.
-      #
+        # AppArmor, so plain `unshare -rn` fails with EPERM on uid_map.
 
-      # An earlier version blocked ports 80 and 443 with iptables on OUTPUT.
-      # That also severs the Actions agent's own control connection to GitHub:
-      # the runner stops reporting, the job hangs until the lost-communication
-      # timeout, and no logs are ever uploaded. It failed after 45 minutes
-      # without reaching a single test.
-      #
-      # Namespacing confines the blackout to the test process. Loopback is
-      # brought up inside it because the tests stand up httpstervers on
-      # 127.0.0.1 — tearing that down would fail them for a reason that has
-      # nothing to do with egress.
-      - name: run tests with no network
-        run: |
-          set -euo pipefail
+        # Lifting the restriction is preferable to running the tests under
 
-          # Ubuntu 24.04 runners restrict unprivileged user namespaces through
-          # AppArmor, so plain `unshare -rn` fails with EPERM on uid_map.
-          # Lifting the restriction is preferable to running the tests under
-          # sudo: as root the Go module and build caches resolve to a
-          # different HOME, the warmed modules are missed, and the download
-          # that follows is the very thing being blocked.
-          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+        # sudo: as root the Go module and build caches resolve to a
 
-          unshare -rn bash -c 'ip link set lo up 2>/dev/null; go test -count=1 ./...'
+        # different HOME, the warmed modules are missed, and the download
 
-  # The image is how the monitor actually runs. Building it only at deploy
-  # time means it breaks at the least convenient moment.
-  verify-store:
-    name: verify committed data chain
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v5
+        # that follows is the very thing being blocked.
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-          cache-dependency-path: go.sum
+        sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      # Verifies the committed data/ hash chains matching the operator docs in docs/verify-store.md.
-      - name: verify store hash chains
-        run: go run ./cmd/wayfared -verify-store -data ./data
 
-  docker:
-    name: container image builds
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v5
+        unshare -rn bash -c ''ip link set lo up 2>/dev/null; go test -count=1 ./...''
 
-      - uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-          cache-dependency-path: go.sum
-
-      - name: build image
-        run: docker build -t wayfare:ci .
-
-      - name: binary runs in the image
-        run: docker run --rm wayfare:ci -verify-store -data /tmp/empty
-
-      # The Dockerfile says what the image is made of; nothing in this
-      # repository said whether any of it is known-bad. This is that
-      # inspection, run against the image this job just built, so the gate and
-      # the artifact can never be different artifacts.
-      #
-      # Both steps are pinned to a version and a scanner release, the rule the
-      # lint job follows: a scanner that moved under us would silently change
-      # what "passing" means.
-      #
-      # The report comes first because it never fails. It covers the whole
-      # image — OS packages and language packages — which today means the Go
-      # standard library compiled into /wayfared. On 2026-09-25 that scan
-      # reported 22 HIGH/CRITICAL advisories with fixes, all in `stdlib` at Go
-      # 1.22.12, and every fix is on a later release line (1.24.13+, 1.25.7+,
-      # 1.26.0-rc.3+): not reachable without leaving the toolchain this
-      # repository is pinned to. Those findings are real and are recorded here
-      # rather than gated, because a job that is always red teaches people to
-      # ignore it.
-      - name: report known vulnerabilities in the image
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          version: v0.74.0
-          scan-type: image
-          image-ref: wayfare:ci
-          scanners: vuln
-          vuln-type: os,library
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          format: table
-          exit-code: "0"
-
-      # The gate covers what this repository can actually change: the packages
-      # the base image ships. A finding here is always actionable — a newer
-      # distroless tag — so the job never asks for a fix that does not exist.
-      # Unfixed findings are excluded for the same reason: an advisory with no
-      # available patch cannot be acted on, and failing on it would block every
-      # pull request while announcing nothing new.
-      - name: fail on a fixable vulnerability in the image's packages
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          version: v0.74.0
-          scan-type: image
-          image-ref: wayfare:ci
-          scanners: vuln
-          vuln-type: os
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          format: table
-          exit-code: "1"
-
-  # docs/verify-store.md tells a reader to run exactly one command to check
-  # that the committed store still verifies. `go test` proves the embedded
-  # copy verifies through the harness, and measure.yml runs the command only
-  # when it is about to write more data — neither is the artifact a reader
-  # copy-pastes, so nothing in CI ran it against the committed data/ until
-  # now.
-  #
-  # The job is read-only by construction: it computes hashes over files it
-  # never writes, and `timeout-minutes` keeps a stalled read from holding a
-  # runner. When a record is edited — one byte, a shifted timestamp, a
-  # re-ordered line — recomputing the chain disagrees and the step exits
-  # non-zero with the corridor named.
+        '
   verify-store:
     name: committed chain verifies
     runs-on: ubuntu-latest
@@ -276,15 +103,50 @@ jobs:
     permissions:
       contents: read
     steps:
-      - uses: actions/checkout@v5
-
-      - uses: actions/setup-go@v6
-        with:
-          go-version: ${{ env.GO_VERSION }}
-          cache: true
-          cache-dependency-path: go.sum
-
-      # The exact command docs/verify-store.md asks a reader to run, against
-      # the data/ that is committed here — the artifact, not the harness.
-      - name: go run ./cmd/wayfared -verify-store -data ./data
-        run: go run ./cmd/wayfared -verify-store -data ./data
+    - uses: actions/checkout@v5
+    - uses: actions/setup-go@v6
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+        cache-dependency-path: go.sum
+    - name: go run ./cmd/wayfared -verify-store -data ./data
+      run: go run ./cmd/wayfared -verify-store -data ./data
+  docker:
+    name: container image builds
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - uses: actions/checkout@v5
+    - uses: actions/setup-go@v6
+      with:
+        go-version: ${{ env.GO_VERSION }}
+        cache: true
+        cache-dependency-path: go.sum
+    - name: build image
+      run: docker build -t wayfare:ci .
+    - name: binary runs in the image
+      run: docker run --rm wayfare:ci -verify-store -data /tmp/empty
+    - name: report known vulnerabilities in the image
+      uses: aquasecurity/trivy-action@v0.36.0
+      with:
+        version: v0.74.0
+        scan-type: image
+        image-ref: wayfare:ci
+        scanners: vuln
+        vuln-type: os,library
+        severity: HIGH,CRITICAL
+        ignore-unfixed: true
+        format: table
+        exit-code: '0'
+    - name: fail on a fixable vulnerability in the image's packages
+      uses: aquasecurity/trivy-action@v0.36.0
+      with:
+        version: v0.74.0
+        scan-type: image
+        image-ref: wayfare:ci
+        scanners: vuln
+        vuln-type: os,library
+        severity: HIGH,CRITICAL
+        ignore-unfixed: true
+        format: table
+        exit-code: '1'
