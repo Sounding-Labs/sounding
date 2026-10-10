@@ -18,6 +18,8 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 )
@@ -382,5 +384,128 @@ func TestMoneyIsQuotedEverywhere(t *testing.T) {
 			requireQuoted(t, q, "effective_rate")
 			requireQuoted(t, q, "loss_pct")
 		}
+	}
+}
+
+// TestAttestationErrorsCarryCode pins the contract that the attestation
+// error envelope matches every other error in the package: both "error"
+// and "code" are present, and the code is machine-readable.
+//
+// The attestation handlers previously used their own writeJSONError helper,
+// which wrote only "error". A client switching on code — as server/api.go's
+// constants block instructs — silently broke on this one surface. These
+// tests are the guard that the contract holds.
+func TestAttestationErrorsCarryCode(t *testing.T) {
+	cases := []struct {
+		name       string
+		target     string
+		wantStatus int
+		wantCode   string
+	}{
+		{
+			name:       "attestations with empty corridor is a 400 with code",
+			target:     "/api/attestations/",
+			wantStatus: http.StatusBadRequest,
+			wantCode:   codeInvalidQuery,
+		},
+		{
+			name:       "latest attestation with empty corridor is a 400 with code",
+			target:     "/api/attestations//latest",
+			wantStatus: http.StatusBadRequest,
+			wantCode:   codeInvalidQuery,
+		},
+		{
+			name:       "latest attestation with corridor but no data is a 404 with code",
+			target:     "/api/attestations/USDC-NGNC/latest",
+			wantStatus: http.StatusNotFound,
+			wantCode:   codeAttestationsNotDeployed,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest(http.MethodGet, tc.target, nil)
+			rec := httptest.NewRecorder()
+
+			if strings.HasSuffix(tc.target, "/latest") {
+				handleAttestationLatest(rec, req)
+			} else {
+				handleAttestations(rec, req)
+			}
+
+			if rec.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d (body=%s)", rec.Code, tc.wantStatus, rec.Body.String())
+			}
+
+			body := objectFields(t, rec.Body.Bytes())
+
+			if _, ok := body["error"]; !ok {
+				t.Errorf("response has no \"error\" field: %s", rec.Body.String())
+			}
+			if _, ok := body["code"]; !ok {
+				t.Errorf("response has no \"code\" field: %s", rec.Body.String())
+			}
+
+			gotCode := cutString(body, "code")
+			if gotCode != tc.wantCode {
+				t.Errorf("code = %q, want %q", gotCode, tc.wantCode)
+			}
+		})
+	}
+}
+
+// TestAttestationErrorCodesAreKnown enumerates the codes the attestation
+// handlers may emit and asserts they are non-empty and snake_case, matching
+// the constants block in api.go. A regression that hardcodes a string or
+// introduces an uppercase literal here would fail this.
+func TestAttestationErrorCodesAreKnown(t *testing.T) {
+	known := map[string]bool{
+		codeInvalidQuery:            true,
+		codeAttestationsNotDeployed: true,
+	}
+
+	requests := []string{
+		"/api/attestations/",
+		"/api/attestations//latest",
+		"/api/attestations/USDC-NGNC/latest",
+	}
+
+	for _, target := range requests {
+		req := httptest.NewRequest(http.MethodGet, target, nil)
+		rec := httptest.NewRecorder()
+
+		if strings.HasSuffix(target, "/latest") {
+			handleAttestationLatest(rec, req)
+		} else {
+			handleAttestations(rec, req)
+		}
+
+		body := objectFields(t, rec.Body.Bytes())
+		code := cutString(body, "code")
+
+		if code == "" {
+			t.Errorf("%s: empty code in error body", target)
+			continue
+		}
+		if !known[code] {
+			t.Errorf("%s: code %q is not a known attestation error code", target, code)
+		}
+		if code != strings.ToLower(code) {
+			t.Errorf("%s: code %q must be lowercase snake_case", target, code)
+		}
+	}
+}
+
+// TestNoSecondErrorHelperRemains is a source-level guard: the attestation
+// file must not define its own JSON error writer. The package has exactly
+// one (writeError in api.go), and this test makes that invariant explicit
+// rather than incidental.
+func TestNoSecondErrorHelperRemains(t *testing.T) {
+	src, err := os.ReadFile("attestations.go")
+	if err != nil {
+		t.Fatalf("reading attestations.go: %v", err)
+	}
+	if strings.Contains(string(src), "writeJSONError") {
+		t.Errorf("attestations.go still references writeJSONError; the second error helper must be gone")
 	}
 }

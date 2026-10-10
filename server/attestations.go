@@ -64,7 +64,7 @@ func handleAttestations(w http.ResponseWriter, r *http.Request) {
 	corridorID := strings.TrimSpace(path)
 
 	if corridorID == "" {
-		writeJSONError(w, "corridor_id is required", http.StatusBadRequest)
+		writeError(w, r, http.StatusBadRequest, codeInvalidQuery, "corridor_id is required")
 		return
 	}
 
@@ -110,20 +110,13 @@ func handleAttestationLatest(w http.ResponseWriter, r *http.Request) {
 	corridorID := strings.TrimSpace(path)
 
 	if corridorID == "" {
-		writeJSONError(w, "corridor_id is required", http.StatusBadRequest)
+		writeError(w, r, http.StatusBadRequest, codeInvalidQuery, "corridor_id is required")
 		return
 	}
 
 	// TODO: Query Soroban contract for latest attestation
 	// For now, return 404 to signal no attestations yet
 
-	writeJSONError(w, "No attestations found for this corridor. Contract deployment pending.", http.StatusNotFound)
-}
-
-// writeJSONError writes an error response
-func writeJSONError(w http.ResponseWriter, message string, statusCode int) {
-	w.WriteHeader(statusCode)
-	json.NewEncoder(w).Encode(map[string]string{
-		"error": message,
-	})
+	writeError(w, r, http.StatusNotFound, codeAttestationsNotDeployed,
+		"No attestations found for this corridor. Contract deployment pending.")
 }

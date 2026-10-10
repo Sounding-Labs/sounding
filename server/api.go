@@ -513,19 +513,20 @@ const maxSizes = 24
 // Machine-readable codes carried in error responses. Clients should switch on
 // code, not on the human-readable message.
 const (
-	codeMethodNotAllowed    = "method_not_allowed"
-	codeUnknownSendAsset    = "unknown_send_asset"
-	codeUnknownReceiveAsset = "unknown_receive_asset"
-	codeNoFiatPeg           = "no_fiat_peg"
-	codeInvalidSizes        = "invalid_sizes"
-	codeMeasurementFailed   = "measurement_failed"
-	codeUpstreamTimeout     = "upstream_timeout"
-	codeInvalidQuery        = "invalid_query"
-	codeInternalError       = "internal_error"
-	codeInvalidLimit        = "invalid_limit"
-	codeStoreRead           = "store_read_error"
-	codeDivergenceHistory   = "divergence_history_error"
-	codeRateLimited         = "rate_limited"
+	codeMethodNotAllowed        = "method_not_allowed"
+	codeUnknownSendAsset        = "unknown_send_asset"
+	codeUnknownReceiveAsset     = "unknown_receive_asset"
+	codeNoFiatPeg               = "no_fiat_peg"
+	codeInvalidSizes            = "invalid_sizes"
+	codeMeasurementFailed       = "measurement_failed"
+	codeUpstreamTimeout         = "upstream_timeout"
+	codeInvalidQuery            = "invalid_query"
+	codeInternalError           = "internal_error"
+	codeInvalidLimit            = "invalid_limit"
+	codeStoreRead               = "store_read_error"
+	codeDivergenceHistory       = "divergence_history_error"
+	codeRateLimited             = "rate_limited"
+	codeAttestationsNotDeployed = "attestations_not_deployed"
 )
 
 // checkParams rejects any query parameter outside the endpoint's allow-list.
