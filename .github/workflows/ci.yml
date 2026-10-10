@@ -141,6 +141,23 @@ jobs:
 
   # The image is how the monitor actually runs. Building it only at deploy
   # time means it breaks at the least convenient moment.
+  verify-store:
+    name: verify committed data chain
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: go.sum
+
+      # Verifies the committed data/ hash chains matching the operator docs in docs/verify-store.md.
+      - name: verify store hash chains
+        run: go run ./cmd/wayfared -verify-store -data ./data
+
   docker:
     name: container image builds
     runs-on: ubuntu-latest
