@@ -320,25 +320,6 @@ func (s *FileStore) Corridors(ctx context.Context) ([]string, error) {
 	return out, nil
 }
 
-// VerifyAll walks every corridor's chain, reporting each failure.
-func (s *FileStore) VerifyAll(ctx context.Context) error {
-	corridors, err := s.Corridors(ctx)
-	if err != nil {
-		return err
-	}
-	var problems []string
-	for _, c := range corridors {
-		if err := s.Verify(ctx, c); err != nil {
-			problems = append(problems, err.Error())
-		}
-	}
-	if len(problems) > 0 {
-		return fmt.Errorf("runstore: %d corridor chain(s) failed verification:\n%s",
-			len(problems), strings.Join(problems, "\n"))
-	}
-	return nil
-}
-
 // MaxWindow is the ceiling on one corridor's committed chain, in records.
 //
 // The measure workflow appends every six hours, so a chain grows by four

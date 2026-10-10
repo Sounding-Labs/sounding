@@ -3,9 +3,11 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -201,3 +203,60 @@ func TestVerifyStoreReadOnlyBackend(t *testing.T) {
 		t.Fatalf("verifyStore on read-only backend = %d, want 0", code)
 	}
 }
+
+func TestVerifyStoreEditedMiddleRecord(t *testing.T) {
+	dir := t.TempDir()
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.LevelError}))
+	store, err := openStore(dir, logger)
+	if err != nil {
+		t.Fatalf("openStore: %v", err)
+	}
+
+	ctx := context.Background()
+	for i := 1; i <= 3; i++ {
+		rec := &runstore.Record{
+			Version:      runstore.Version,
+			Seq:          int64(i),
+			RecordedAt:   time.Unix(int64(i*100), 0).UTC(),
+			Corridor:     "USDC-NGNC",
+			Integrity:    "good",
+			DependsOn:    []string{},
+			Finding:      "ok",
+			Rungs:        []runstore.Rung{},
+			FloorLossPct: fmt.Sprintf("25.0%d", i),
+			FloorSize:    "1",
+			WorstLossPct: fmt.Sprintf("25.0%d", i),
+			WorstSize:    "1",
+		}
+		if err := store.Append(ctx, rec); err != nil {
+			t.Fatalf("Append seq %d: %v", i, err)
+		}
+	}
+
+	if code := verifyStore(store, logger); code != 0 {
+		t.Fatalf("verifyStore before tampering = %d, want 0", code)
+	}
+
+	path := filepath.Join(dir, "USDC-NGNC"+runstore.FileExt)
+	raw, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	lines := strings.Split(strings.TrimSpace(string(raw)), "\n")
+	if len(lines) != 3 {
+		t.Fatalf("expected 3 records, got %d", len(lines))
+	}
+	lines[1] = strings.Replace(lines[1], `"floor_loss_pct":"25.02"`, `"floor_loss_pct":"5.02"`, 1)
+	if !strings.Contains(lines[1], `"floor_loss_pct":"5.02"`) {
+		t.Fatal("test setup failed: middle record was not modified")
+	}
+	if err := os.WriteFile(path, []byte(strings.Join(lines, "\n")+"\n"), 0o644); err != nil {
+		t.Fatalf("WriteFile: %v", err)
+	}
+
+	code := verifyStore(store, logger)
+	if code != 1 {
+		t.Errorf("verifyStore with edited middle record = %d, want 1", code)
+	}
+}
+
