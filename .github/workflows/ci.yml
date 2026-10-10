@@ -209,3 +209,35 @@ jobs:
           ignore-unfixed: true
           format: table
           exit-code: "1"
+
+  # docs/verify-store.md tells a reader to run exactly one command to check
+  # that the committed store still verifies. `go test` proves the embedded
+  # copy verifies through the harness, and measure.yml runs the command only
+  # when it is about to write more data — neither is the artifact a reader
+  # copy-pastes, so nothing in CI ran it against the committed data/ until
+  # now.
+  #
+  # The job is read-only by construction: it computes hashes over files it
+  # never writes, and `timeout-minutes` keeps a stalled read from holding a
+  # runner. When a record is edited — one byte, a shifted timestamp, a
+  # re-ordered line — recomputing the chain disagrees and the step exits
+  # non-zero with the corridor named.
+  verify-store:
+    name: committed chain verifies
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache: true
+          cache-dependency-path: go.sum
+
+      # The exact command docs/verify-store.md asks a reader to run, against
+      # the data/ that is committed here — the artifact, not the harness.
+      - name: go run ./cmd/wayfared -verify-store -data ./data
+        run: go run ./cmd/wayfared -verify-store -data ./data
