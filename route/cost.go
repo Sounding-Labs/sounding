@@ -15,9 +15,6 @@
 package route
 
 import (
-	"errors"
-
-	"github.com/Wayfare-labs/wayfare/checks"
 	"github.com/shopspring/decimal"
 )
 
@@ -121,32 +118,4 @@ func Decompose(q Quote, mid decimal.Decimal) CostDecomposition {
 		Parts:        parts,
 		TotalLossPct: q.LossPct,
 	}
-}
-
-// SweepCostClass classifies the upstream request cost of a metric sweep
-// across sizes, distinguishing CostOneRequest from CostExpensive in accordance
-// with checks.Descriptor.Cost.
-func SweepCostClass(sizeCount int) checks.Cost {
-	if sizeCount <= 1 {
-		return checks.CostOneRequest
-	}
-	return checks.CostExpensive
-}
-
-// ErrComponentSumMismatch is returned when the sum of determined and undetermined
-// cost components does not match the published total loss within the stated tolerance.
-var ErrComponentSumMismatch = errors.New("component sum does not match total loss within tolerance")
-
-// ReconcileComponents asserts that the sum of components and undetermined amount
-// equals the total loss within the stated tolerance.
-func ReconcileComponents(total decimal.Decimal, comps map[string]decimal.Decimal, undetermined decimal.Decimal, tolerance decimal.Decimal) error {
-	sum := undetermined
-	for _, val := range comps {
-		sum = sum.Add(val)
-	}
-	diff := sum.Sub(total).Abs()
-	if diff.GreaterThan(tolerance) {
-		return ErrComponentSumMismatch
-	}
-	return nil
 }
