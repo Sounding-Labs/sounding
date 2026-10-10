@@ -359,3 +359,4 @@ claims and no publisher trust model.
 - [spike-second-maintainer-verification.md](spike-second-maintainer-verification.md) — what is reproducible without trust
 - [spike-publisher-trust-tradeoff.md](spike-publisher-trust-tradeoff.md) — #212, the sibling spike
 - [docs/backlog.md](backlog.md#151) — initiative E4, this issue's context
+- [docs/backlog.md](backlog.md#151) — initiative E4, this issue's context
