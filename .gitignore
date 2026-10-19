@@ -25,7 +25,9 @@ coverage.html
 
 # Claude Code local overrides (personal, not shared)
 .claude/settings.local.json
+.gitignore
 branch_structure.json
 temp_auto_push.bat
 temp_interactive_push.bat
-.gitignore
+config.bat
+node_modules
